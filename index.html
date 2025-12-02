@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日一笑 - 點擊換下一個</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            /* 背景顏色移除，改用影片 */
+        }
+
+        .joke-card {
+            transition: transform 0.1s ease-in-out, box-shadow 0.2s ease;
+            cursor: pointer;
+            user-select: none; /* Prevent text selection when clicking fast */
+        }
+
+        .joke-card:active {
+            transform: scale(0.98);
+        }
+
+        /* Animation classes */
+        .fade-in {
+            animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .emoji-bg {
+            position: absolute;
+            font-size: 8rem;
+            opacity: 0.1;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Video Background Styles */
+        #bg-video {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -20;
+            object-fit: cover;
+        }
+
+        #bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(254, 249, 195, 0.6); /* yellow-100 with opacity */
+            z-index: -10;
+            backdrop-filter: blur(2px); /* Slight blur for better text readability */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+
+    <!-- Video Background -->
+    <video autoplay muted loop playsinline id="bg-video">
+        <source src="https://files.catbox.moe/a0ge3t.mp4" type="video/mp4">
+        Your browser does not support HTML5 video.
+    </video>
+
+    <!-- Overlay to ensure text readability -->
+    <div id="bg-overlay"></div>
+
+    <!-- Decorative Background Emojis -->
+    <div class="emoji-bg top-10 left-10">🤣</div>
+    <div class="emoji-bg bottom-10 right-10">😂</div>
+    <div class="emoji-bg top-1/2 right-5 hidden md:block">🤪</div>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-2xl z-10 flex flex-col items-center gap-6">
+        
+        <!-- Header -->
+        <header class="text-center mb-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-yellow-900 mb-2 flex items-center justify-center gap-2 drop-shadow-sm">
+                <i data-lucide="smile-plus" class="w-8 h-8 md:w-10 md:h-10 text-yellow-600"></i>
+                開心時刻
+            </h1>
+            <p class="text-yellow-900 font-medium opacity-90">點擊卡片換下一個笑話</p>
+        </header>
+
+        <!-- Joke Card -->
+        <div id="joke-container" class="joke-card bg-white/95 backdrop-blur-sm w-full rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border-4 border-yellow-400 p-8 md:p-12 min-h-[300px] flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-yellow-500 transition-colors">
+            
+            <!-- Click hint overlay (mobile friendly) -->
+            <div class="absolute top-4 right-4 text-yellow-300 opacity-50 group-hover:opacity-100 transition-opacity">
+                <i data-lucide="mouse-pointer-click" class="w-6 h-6"></i>
+            </div>
+
+            <!-- Content Area -->
+            <div id="joke-content" class="fade-in">
+                <!-- Joke Text injected by JS -->
+                <p id="joke-setup" class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 leading-snug">
+                    正在載入笑話...
+                </p>
+                <p id="joke-punchline" class="text-xl md:text-2xl font-medium text-pink-600 leading-relaxed">
+                    <!-- Punchline here -->
+                </p>
+            </div>
+
+            <!-- Bottom decorative line -->
+            <div class="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-300 via-orange-300 to-yellow-300"></div>
+        </div>
+
+        <!-- Buttons / Controls -->
+        <div class="flex gap-4">
+            <button onclick="copyJoke(event)" class="flex items-center gap-2 px-6 py-3 bg-white/90 backdrop-blur text-yellow-800 rounded-full font-bold shadow-md hover:bg-yellow-50 active:scale-95 transition-all border border-yellow-200">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+                複製笑話
+            </button>
+            <button onclick="nextJoke(event)" class="flex items-center gap-2 px-6 py-3 bg-yellow-500 text-white rounded-full font-bold shadow-md hover:bg-yellow-600 active:scale-95 transition-all shadow-yellow-500/30">
+                下一個
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        已複製到剪貼簿！
+    </div>
+
+    <script>
+        // Init Icons
+        lucide.createIcons();
+
+        // Joke Database (Traditional Chinese)
+        const jokes = [
+            { setup: "有一根火柴棒覺得頭很癢，抓一抓...", punchline: "就燒起來了。" },
+            { setup: "綠豆從高樓掉下來會變成什麼？", punchline: "紅豆。（因為流血了）" },
+            { setup: "為什麼企鵝只有肚子是白的？", punchline: "因為手太短，洗不到背。" },
+            { setup: "有一天，0 遇到 8，0 就對 8 說...", punchline: "「胖就胖，還繫什麼皮帶啊？」" },
+            { setup: "小明去便利商店買飲料，店員問：「先生，飲料需要吸管嗎？」", punchline: "小明：「不需要，我習慣把頭伸進去喝。」" },
+            { setup: "愚公移山的時候唱什麼歌？", punchline: "移山移山亮晶晶... (一閃一閃亮晶晶)" },
+            { setup: "為什麼哈利波特住在哪裡？", punchline: "燈泡裡。（因為他是 Wizard，瓦數）" },
+            { setup: "什麼動物最容易被貼在牆壁上？", punchline: "海報。（海豹）" },
+            { setup: "透明人去超市買東西，為什麼最後沒買成？", punchline: "因為沒人看到他排隊。" },
+            { setup: "香蕉如果不小心掉到地上會變成什麼？", punchline: "茄子。（因為瘀青了）" },
+            { setup: "哪一個英文字母最酷？", punchline: "C。（因為西裝褲 / C 裝酷）" },
+            { setup: "有一隻狼來到北極，不小心掉到冰水裡，變成了什麼？", punchline: "檳榔。（冰狼）" },
+            { setup: "為什麼蠶寶寶很有錢？", punchline: "因為他會結繭。（節儉）" },
+            { setup: "小明長得很高，那他猜一種動物。", punchline: "豬。（因為豬五花 / 豬吾嘩，好高喔！）" },
+            { setup: "皮卡丘站起來變什麼？", punchline: "皮卡兵。（因為皮卡丘走路是 皮卡 丘(趴) 丘(趴)... 站起來就變 兵 兵 兵）" },
+            { setup: "三分熟的牛排在路上遇到五分熟的牛排，為什麼他們沒有打招呼？", punchline: "因為他們不熟。" }
+        ];
+
+        let currentIndex = 0;
+        
+        // Setup elements
+        const setupEl = document.getElementById('joke-setup');
+        const punchlineEl = document.getElementById('joke-punchline');
+        const contentContainer = document.getElementById('joke-content');
+        const cardContainer = document.getElementById('joke-container');
+
+        // Shuffle jokes initially to make it random every refresh
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Initialize
+        shuffleArray(jokes);
+        renderJoke();
+
+        // Main function to show joke
+        function renderJoke() {
+            const joke = jokes[currentIndex];
+            
+            // Reset Animation
+            contentContainer.classList.remove('fade-in');
+            void contentContainer.offsetWidth; // Trigger reflow
+            contentContainer.classList.add('fade-in');
+
+            setupEl.textContent = joke.setup;
+            punchlineEl.textContent = joke.punchline;
+
+            // Change background slightly on every joke for fun visual feedback
+            const hue = Math.floor(Math.random() * 30) + 40; // Yellow-ish hues
+            cardContainer.style.borderColor = `hsl(${hue}, 90%, 50%)`;
+        }
+
+        function nextJoke(e) {
+            // Prevent event bubbling if triggered by button inside card (if any)
+            if(e) e.stopPropagation();
+
+            currentIndex = (currentIndex + 1) % jokes.length;
+            renderJoke();
+        }
+
+        function copyJoke(e) {
+            e.stopPropagation();
+            const joke = jokes[currentIndex];
+            const textToCopy = `${joke.setup}\n${joke.punchline}`;
+            
+            // Create temporary input to copy text
+            const tempInput = document.createElement("textarea");
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            // Show Toast
+            const toast = document.getElementById('toast');
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2000);
+        }
+
+        // Add event listener to the whole card
+        cardContainer.addEventListener('click', nextJoke);
+
+        // Add keyboard support (Space or Enter)
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
+                e.preventDefault(); // Prevent scrolling on space
+                nextJoke();
+            }
+        });
+
+    </script>
+</body>
+</html>
